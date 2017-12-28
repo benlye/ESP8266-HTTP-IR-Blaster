@@ -22,7 +22,7 @@
 const bool getExternalIP = true;                             // Set to false to disable querying external IP
 
 const bool getTime = true;                                    // Set to false to disable querying for the time
-const int timeOffset = -14400;                                // Timezone offset in seconds
+const int timeOffset = 0;                                     // Timezone offset in seconds
 
 int pinr1 = 14;                                               // Receiving pin
 int pins1 = 4;                                                // Transmitting preset 1
