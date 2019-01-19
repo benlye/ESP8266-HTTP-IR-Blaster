@@ -29,11 +29,11 @@ const bool enableMDNSServices = true;                         // Use mDNS servic
 const unsigned int captureBufSize = 150;                      // Size of the IR capture buffer.
 
 // WEMOS users may need to adjust pins for compatability
-const int pinr1 = 5  // 14;                                         // Receiving pin
-const int pins1 = 14 // 4;                                          // Transmitting preset 1
-const int pins2 = 4  // 5;                                          // Transmitting preset 2
-const int pins3 = 12;                                         // Transmitting preset 3
-const int pins4 = 13;                                         // Transmitting preset 4
+const int pinr1 = 5;  // 14;                                         // Receiving pin
+const int pins1 = 14; // 4;                                          // Transmitting preset 1
+const int pins2 = 14;  // 5;                                          // Transmitting preset 2
+const int pins3 = 14;                                         // Transmitting preset 3
+const int pins4 = 14;                                         // Transmitting preset 4
 const int configpin = 10;                                     // Reset Pin
 
 // User settings are above here
@@ -486,7 +486,7 @@ void setup() {
   Serial.println(digitalRead(configpin));
   if (!setupWifi(digitalRead(configpin) == LOW))
     return;
-
+  //setupWifi(true);
   Serial.println("WiFi configuration complete");
 
   if (strlen(host_name) > 0) {
