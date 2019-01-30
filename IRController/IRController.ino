@@ -6,7 +6,7 @@
 #include <IRutils.h>
 #include <ESP8266WiFi.h>
 #include <WiFiManager.h>                                      // https://github.com/tzapu/WiFiManager WiFi Configuration Magic
-#include <ESP8266mDNS.h>                                      // Useful to access to ESP by hostname.local
+#include <ESP8266mDNS.h>                                      // Useful to access to ESP by DNS hostname
 
 #include <ArduinoJson.h>
 #include <ESP8266WebServer.h>
@@ -23,15 +23,21 @@ const bool getExternalIP = true;                              // Set to false to
 
 const bool getTime = true;                                    // Set to false to disable querying for the time
 const int timeOffset = 0;                                     // Timezone offset in seconds
+const int timeUpdateInterval = 900;                           // NTP update interval in seconds
+
+const int bootDelay = 10;                                     // Number of seconds to delay startup after WiFi initialization
+
+const int externalIpCheckInterval = 5;                        // Number of minutes between external IP address checks
 
 const bool enableMDNSServices = true;                         // Use mDNS services, must be enabled for ArduinoOTA
+const char dnsDomain[] = ".lan";                              // Local DNS domain name to append to the host name
 
 const unsigned int captureBufSize = 150;                      // Size of the IR capture buffer.
 
 // WEMOS users may need to adjust pins for compatability
-const int pinr1 = 5;  // 14;                                         // Receiving pin
-const int pins1 = 14; // 4;                                          // Transmitting preset 1
-const int pins2 = 14;  // 5;                                          // Transmitting preset 2
+const int pinr1 = 5;  // 14;                                  // Receiving pin
+const int pins1 = 14; // 4;                                   // Transmitting preset 1
+const int pins2 = 14;  // 5;                                  // Transmitting preset 2
 const int pins3 = 14;                                         // Transmitting preset 3
 const int pins4 = 14;                                         // Transmitting preset 4
 const int configpin = 10;                                     // Reset Pin
@@ -66,11 +72,11 @@ IRsend irsend2(pins2);
 IRsend irsend3(pins3);
 IRsend irsend4(pins4);
 
-const unsigned long resetfrequency = 259200000;                // 72 hours in milliseconds
+//const unsigned long resetfrequency = (externalIpCheckInterval * 60000);
 const char* poolServerName = "time.nist.gov";
 
 WiFiUDP ntpUDP;
-NTPClient timeClient(ntpUDP, poolServerName, timeOffset, 1800000);
+NTPClient timeClient(ntpUDP, poolServerName, timeOffset, timeUpdateInterval * 1000);
 
 char _ip[16] = "";
 
@@ -252,7 +258,7 @@ String externalIP()
   }
 
   if (strlen(_ip) > 0) {
-    if (millis() - lastupdate > resetfrequency || lastupdate > millis()) {
+    if (millis() - lastupdate > (externalIpCheckInterval * 60000) || lastupdate > millis()) {
       Serial.println("Reseting cached external IP address");
       strncpy(_ip, "", 16); // Reset the cached external IP every 72 hours
     } else {
@@ -507,8 +513,10 @@ void setup() {
   
   Serial.print("Local IP: ");
   Serial.println(WiFi.localIP().toString());
-  Serial.println("URL to send commands: http://" + String(host_name) + ".local:" + port_str);
+  Serial.println("URL to send commands: http://" + String(host_name) + String(dnsDomain) + ":" + port_str);
 
+  delay(bootDelay * 1000);
+  
   if (getTime || strlen(user_id) != 0) timeClient.begin(); // Get the time
 
   if (enableMDNSServices) {
@@ -537,7 +545,7 @@ void setup() {
 
     // Configure mDNS
     MDNS.addService("http", "tcp", port); // Announce the ESP as an HTTP service
-    Serial.println("MDNS http service added. Hostname is set to " + String(host_name) + ".local:" + String(port));
+    Serial.println("MDNS http service added. Hostname is set to " + String(host_name) + String(dnsDomain) + ":" + String(port));
   }
 
   // Configure the server
@@ -950,7 +958,7 @@ void sendHeader(int httpcode) {
   server->sendContent("        <div class='col-md-12'>\n");
   server->sendContent("          <ul class='nav nav-pills'>\n");
   server->sendContent("            <li class='active'>\n");
-  server->sendContent("              <a href='http://" + String(host_name) + ".local" + ":" + String(port) + "'>Hostname <span class='badge'>" + String(host_name) + ".local" + ":" + String(port) + "</span></a></li>\n");
+  server->sendContent("              <a href='http://" + String(host_name) + String(dnsDomain) + ":" + String(port) + "'>Hostname <span class='badge'>" + String(host_name) + String(dnsDomain) + ":" + String(port) + "</span></a></li>\n");
   server->sendContent("            <li class='active'>\n");
   server->sendContent("              <a href='http://" + WiFi.localIP().toString() + ":" + String(port) + "'>Local <span class='badge'>" + WiFi.localIP().toString() + ":" + String(port) + "</span></a></li>\n");
   server->sendContent("            <li class='active'>\n");
@@ -966,7 +974,7 @@ void sendHeader(int httpcode) {
 // Send footer HTML
 //
 void sendFooter() {
-  server->sendContent("      <div class='row'><div class='col-md-12'><em>" + String(millis()) + "ms uptime; EPOCH " + String(timeClient.getEpochTime() - timeOffset) + "</em></div></div>\n");
+  server->sendContent("      <div class='row'><div class='col-md-12'><em>" + String(millis() / 1000) + "s uptime; EPOCH " + String(timeClient.getEpochTime() - timeOffset) + "</em></div></div>\n");
   if (strlen(user_id) != 0)
   server->sendContent("      <div class='row'><div class='col-md-12'><em>Device secured with SHA256 authentication. Only commands sent and verified with Amazon Alexa and the IR Controller Skill will be processed</em></div></div>");
   if (authError)
@@ -1099,7 +1107,7 @@ void sendCodePage(Code selCode, int httpcode){
   server->sendContent("        <div class='col-md-12'>\n");
   server->sendContent("          <ul class='list-unstyled'>\n");
   server->sendContent("            <li>Hostname <span class='label label-default'>JSON</span></li>\n");
-  server->sendContent("            <li><pre>http://" + String(host_name) + ".local:" + String(port) + "/json?plain=[{'data':[" + String(selCode.raw) + "],'type':'raw','khz':38}]</pre></li>\n");
+  server->sendContent("            <li><pre>http://" + String(host_name) + String(dnsDomain) + ":" + String(port) + "/json?plain=[{'data':[" + String(selCode.raw) + "],'type':'raw','khz':38}]</pre></li>\n");
   server->sendContent("            <li>Local IP <span class='label label-default'>JSON</span></li>\n");
   server->sendContent("            <li><pre>http://" + WiFi.localIP().toString() + ":" + String(port) + "/json?plain=[{'data':[" + String(selCode.raw) + "],'type':'raw','khz':38}]</pre></li>\n");
   server->sendContent("            <li>External IP <span class='label label-default'>JSON</span></li>\n");
@@ -1110,14 +1118,14 @@ void sendCodePage(Code selCode, int httpcode){
   server->sendContent("        <div class='col-md-12'>\n");
   server->sendContent("          <ul class='list-unstyled'>\n");
   server->sendContent("            <li>Hostname <span class='label label-default'>MSG</span></li>\n");
-  server->sendContent("            <li><pre>http://" + String(host_name) + ".local:" + String(port) + "/msg?code=" + String(selCode.data) + ":" + String(selCode.encoding) + ":" + String(selCode.bits) + "&address=" + String(selCode.address) + "</pre></li>\n");
+  server->sendContent("            <li><pre>http://" + String(host_name) + String(dnsDomain) + ":" + String(port) + "/msg?code=" + String(selCode.data) + ":" + String(selCode.encoding) + ":" + String(selCode.bits) + "&address=" + String(selCode.address) + "</pre></li>\n");
   server->sendContent("            <li>Local IP <span class='label label-default'>MSG</span></li>\n");
   server->sendContent("            <li><pre>http://" + WiFi.localIP().toString() + ":" + String(port) + "/msg?code=" + String(selCode.data) + ":" + String(selCode.encoding) + ":" + String(selCode.bits) + "&address=" + String(selCode.address) + "</pre></li>\n");
   server->sendContent("            <li>External IP <span class='label label-default'>MSG</span></li>\n");
   server->sendContent("            <li><pre>http://" + externalIP() + ":" + String(port) + "/msg?code=" + selCode.data + ":" + String(selCode.encoding) + ":" + String(selCode.bits) + "&address=" + String(selCode.address) + "</pre></li></ul>\n");
   server->sendContent("          <ul class='list-unstyled'>\n");
   server->sendContent("            <li>Hostname <span class='label label-default'>JSON</span></li>\n");
-  server->sendContent("            <li><pre>http://" + String(host_name) + ".local:" + String(port) + "/json?plain=[{'data':'" + String(selCode.data) + "','type':'" + String(selCode.encoding) + "','length':" + String(selCode.bits) + ",'address':'" + String(selCode.address) + "'}]</pre></li>\n");
+  server->sendContent("            <li><pre>http://" + String(host_name) + String(dnsDomain) + ":" + String(port) + "/json?plain=[{'data':'" + String(selCode.data) + "','type':'" + String(selCode.encoding) + "','length':" + String(selCode.bits) + ",'address':'" + String(selCode.address) + "'}]</pre></li>\n");
   server->sendContent("            <li>Local IP <span class='label label-default'>JSON</span></li>\n");
   server->sendContent("            <li><pre>http://" + WiFi.localIP().toString() + ":" + String(port) + "/json?plain=[{'data':'" + String(selCode.data) + "','type':'" + String(selCode.encoding) + "','length':" + String(selCode.bits) + ",'address':'" + String(selCode.address) + "'}]</pre></li>\n");
   server->sendContent("            <li>External IP <span class='label label-default'>JSON</span></li>\n");
@@ -1127,14 +1135,14 @@ void sendCodePage(Code selCode, int httpcode){
   server->sendContent("        <div class='col-md-12'>\n");
   server->sendContent("          <ul class='list-unstyled'>\n");
   server->sendContent("            <li>Hostname <span class='label label-default'>MSG</span></li>\n");
-  server->sendContent("            <li><pre>http://" + String(host_name) + ".local:" + String(port) + "/msg?code=" + String(selCode.data) + ":" + String(selCode.encoding) + ":" + String(selCode.bits) + "</pre></li>\n");
+  server->sendContent("            <li><pre>http://" + String(host_name) + String(dnsDomain) + ":" + String(port) + "/msg?code=" + String(selCode.data) + ":" + String(selCode.encoding) + ":" + String(selCode.bits) + "</pre></li>\n");
   server->sendContent("            <li>Local IP <span class='label label-default'>MSG</span></li>\n");
   server->sendContent("            <li><pre>http://" + WiFi.localIP().toString() + ":" + String(port) + "/msg?code=" + String(selCode.data) + ":" + String(selCode.encoding) + ":" + String(selCode.bits) + "</pre></li>\n");
   server->sendContent("            <li>External IP <span class='label label-default'>MSG</span></li>\n");
   server->sendContent("            <li><pre>http://" + externalIP() + ":" + String(port) + "/msg?code=" + selCode.data + ":" + String(selCode.encoding) + ":" + String(selCode.bits) + "</pre></li></ul>\n");
   server->sendContent("          <ul class='list-unstyled'>\n");
   server->sendContent("            <li>Hostname <span class='label label-default'>JSON</span></li>\n");
-  server->sendContent("            <li><pre>http://" + String(host_name) + ".local:" + String(port) + "/json?plain=[{'data':'" + String(selCode.data) + "','type':'" + String(selCode.encoding) + "','length':" + String(selCode.bits) + "}]</pre></li>\n");
+  server->sendContent("            <li><pre>http://" + String(host_name) + String(dnsDomain) + ":" + String(port) + "/json?plain=[{'data':'" + String(selCode.data) + "','type':'" + String(selCode.encoding) + "','length':" + String(selCode.bits) + "}]</pre></li>\n");
   server->sendContent("            <li>Local IP <span class='label label-default'>JSON</span></li>\n");
   server->sendContent("            <li><pre>http://" + WiFi.localIP().toString() + ":" + String(port) + "/json?plain=[{'data':'" + String(selCode.data) + "','type':'" + String(selCode.encoding) + "','length':" + String(selCode.bits) + "}]</pre></li>\n");
   server->sendContent("            <li>External IP <span class='label label-default'>JSON</span></li>\n");
@@ -1465,17 +1473,17 @@ void loop() {
   if (getTime || strlen(user_id) != 0) timeClient.update();                               // Update the time
 
   if (irrecv.decode(&results) && !holdReceive) {                  // Grab an IR code
-    Serial.println("Signal received:");
-    fullCode(&results);                                           // Print the singleline value
-    dumpCode(&results);                                           // Output the results as source code
-    copyCode(last_recv_4, last_recv_5);                           // Pass
-    copyCode(last_recv_3, last_recv_4);                           // Pass
-    copyCode(last_recv_2, last_recv_3);                           // Pass
-    copyCode(last_recv, last_recv_2);                             // Pass
-    cvrtCode(last_recv, &results);                                // Store the results
-    strncpy(last_recv.timestamp, String(timeClient.getFormattedTime()).c_str(), 40);  // Set the new update time
-    last_recv.valid = true;
-    Serial.println("");                                           // Blank line between entries
+    //Serial.println("Signal received:");
+    //fullCode(&results);                                           // Print the singleline value
+    //dumpCode(&results);                                           // Output the results as source code
+    //copyCode(last_recv_4, last_recv_5);                           // Pass
+    //copyCode(last_recv_3, last_recv_4);                           // Pass
+    //copyCode(last_recv_2, last_recv_3);                           // Pass
+    //copyCode(last_recv, last_recv_2);                             // Pass
+    //cvrtCode(last_recv, &results);                                // Store the results
+    //strncpy(last_recv.timestamp, String(timeClient.getFormattedTime()).c_str(), 40);  // Set the new update time
+    //last_recv.valid = true;
+    //Serial.println("");                                           // Blank line between entries
     irrecv.resume();                                              // Prepare for the next value
     digitalWrite(ledpin, LOW);                                    // Turn on the LED for 0.5 seconds
     ticker.attach(0.5, disableLed);
