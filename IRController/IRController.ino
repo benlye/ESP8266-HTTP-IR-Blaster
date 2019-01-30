@@ -20,6 +20,7 @@
 // User settings are below here
 
 const bool getExternalIP = true;                              // Set to false to disable querying external IP
+const bool debugReceive = false;                              // Set to true to write detailed information to serial out when receiving codes
 
 const bool getTime = true;                                    // Set to false to disable querying for the time
 const int timeOffset = 0;                                     // Timezone offset in seconds
@@ -1473,9 +1474,11 @@ void loop() {
   if (getTime || strlen(user_id) != 0) timeClient.update();                               // Update the time
 
   if (irrecv.decode(&results) && !holdReceive) {                  // Grab an IR code
-    //Serial.println("Signal received:");
-    //fullCode(&results);                                           // Print the singleline value
-    //dumpCode(&results);                                           // Output the results as source code
+    if (debugReceive) {
+      Serial.println("Signal received:");
+      fullCode(&results);                                           // Print the singleline value
+      dumpCode(&results);                                           // Output the results as source code
+    }
     //copyCode(last_recv_4, last_recv_5);                           // Pass
     //copyCode(last_recv_3, last_recv_4);                           // Pass
     //copyCode(last_recv_2, last_recv_3);                           // Pass
