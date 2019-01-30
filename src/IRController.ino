@@ -1625,13 +1625,13 @@ void loop() {
     //Serial.println("Signal received:");
     //fullCode(&results);                                           // Print the singleline value
     //dumpCode(&results);                                           // Output the results as source code
-    //copyCode(last_recv_4, last_recv_5);                           // Pass
-    //copyCode(last_recv_3, last_recv_4);                           // Pass
-    //copyCode(last_recv_2, last_recv_3);                           // Pass
-    //copyCode(last_recv, last_recv_2);                             // Pass
-    //cvrtCode(last_recv, &results);                                // Store the results
-    //last_recv.timestamp = now();                                  // Set the new update time
-    //last_recv.valid = true;
+    copyCode(last_recv_4, last_recv_5);                           // Pass
+    copyCode(last_recv_3, last_recv_4);                           // Pass
+    copyCode(last_recv_2, last_recv_3);                           // Pass
+    copyCode(last_recv, last_recv_2);                             // Pass
+    cvrtCode(last_recv, &results);                                // Store the results
+    last_recv.timestamp = now();                                  // Set the new update time
+    last_recv.valid = true;
     //Serial.println("");                                           // Blank line between entries
     irrecv.resume();                                              // Prepare for the next value
     digitalWrite(ledpin, LOW);                                    // Turn on the LED for 0.5 seconds
