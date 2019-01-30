@@ -22,22 +22,22 @@
 const bool getExternalIP = true;                              // Set to false to disable querying external IP
 
 const bool getTime = true;                                    // Set to false to disable querying for the time
-const int timeZone = -5;                                      // Timezone (-5 is EST)
+const int timeZone = 0;                                      // Timezone (-5 is EST)
 
 const bool enableMDNSServices = true;                         // Use mDNS services, must be enabled for ArduinoOTA
 
 const unsigned int captureBufSize = 150;                      // Size of the IR capture buffer.
 
 // WEMOS users may need to adjust pins for compatability
-const int pinr1 = 14;                                         // Receiving pin
-const int pins1 = 4;                                          // Transmitting preset 1
-const int pins2 = 5;                                          // Transmitting preset 2
-const int pins3 = 12;                                         // Transmitting preset 3
-const int pins4 = 13;                                         // Transmitting preset 4
+const int pinr1 = 5;                                          // Receiving pin
+const int pins1 = 14;                                         // Transmitting preset 1
+const int pins2 = 14;                                         // Transmitting preset 2
+const int pins3 = 14;                                         // Transmitting preset 3
+const int pins4 = 14;                                         // Transmitting preset 4
 const int configpin = 10;                                     // Reset Pin
 
 // User settings are above here
-const int ledpin = BUILTIN_LED;                               // Built in LED defined for WEMOS people
+const int ledpin = 12;                               // Built in LED defined for WEMOS people
 const char *wifi_config_name = "IR Controller Configuration";
 const char serverName[] = "checkip.dyndns.org";
 int port = 80;
@@ -1622,17 +1622,17 @@ void loop() {
   decode_results  results;                                        // Somewhere to store the results
 
   if (irrecv.decode(&results) && !holdReceive) {                  // Grab an IR code
-    Serial.println("Signal received:");
-    fullCode(&results);                                           // Print the singleline value
-    dumpCode(&results);                                           // Output the results as source code
-    copyCode(last_recv_4, last_recv_5);                           // Pass
-    copyCode(last_recv_3, last_recv_4);                           // Pass
-    copyCode(last_recv_2, last_recv_3);                           // Pass
-    copyCode(last_recv, last_recv_2);                             // Pass
-    cvrtCode(last_recv, &results);                                // Store the results
-    last_recv.timestamp = now();                                  // Set the new update time
-    last_recv.valid = true;
-    Serial.println("");                                           // Blank line between entries
+    //Serial.println("Signal received:");
+    //fullCode(&results);                                           // Print the singleline value
+    //dumpCode(&results);                                           // Output the results as source code
+    //copyCode(last_recv_4, last_recv_5);                           // Pass
+    //copyCode(last_recv_3, last_recv_4);                           // Pass
+    //copyCode(last_recv_2, last_recv_3);                           // Pass
+    //copyCode(last_recv, last_recv_2);                             // Pass
+    //cvrtCode(last_recv, &results);                                // Store the results
+    //last_recv.timestamp = now();                                  // Set the new update time
+    //last_recv.valid = true;
+    //Serial.println("");                                           // Blank line between entries
     irrecv.resume();                                              // Prepare for the next value
     digitalWrite(ledpin, LOW);                                    // Turn on the LED for 0.5 seconds
     ticker.attach(0.5, disableLed);
