@@ -21,6 +21,8 @@
 
 const bool getExternalIP = true;                              // Set to false to disable querying external IP
 
+const bool enableSerialOutput = false;                        // Set to true to enable serial debugging output
+
 const bool getTime = true;                                    // Set to false to disable querying for the time
 const int timeZone = 0;                                      // Timezone (-5 is EST)
 
@@ -116,7 +118,7 @@ Code last_send_5;
 // Callback notifying us of the need to save config
 //
 void saveConfigCallback () {
-  Serial.println("Should save config");
+  if (enableSerialOutput) Serial.println("Should save config");
   shouldSaveConfig = true;
 }
 
@@ -126,7 +128,7 @@ void saveConfigCallback () {
 //
 void resetReceive() {
   if (holdReceive) {
-    Serial.println("Reenabling receiving");
+    if (enableSerialOutput) Serial.println("Reenabling receiving");
     irrecv.resume();
     holdReceive = false;
   }
@@ -138,7 +140,7 @@ void resetReceive() {
 //
 bool validUID(char* user_id) {
   if (!String(user_id).startsWith("amzn1.account.")) {
-      Serial.println("Warning, user_id appears to be in the wrong format, security check will most likely fail. Should start with amzn1.account.***");
+      if (enableSerialOutput) Serial.println("Warning, user_id appears to be in the wrong format, security check will most likely fail. Should start with amzn1.account.***");
       return false;
     }
     return true;
@@ -150,8 +152,8 @@ bool validUID(char* user_id) {
 //
 bool validEPOCH(time_t timenow) {
   if (timenow < 922838400) {
-    Serial.println("Epoch time from timeServer is unexpectedly old, probably failed connection to the time server. Check your network settings");
-    Serial.println(timenow);
+    if (enableSerialOutput) Serial.println("Epoch time from timeServer is unexpectedly old, probably failed connection to the time server. Check your network settings");
+    if (enableSerialOutput) Serial.println(timenow);
     return false;
   }
   return true;
@@ -188,13 +190,13 @@ bool validateHMAC(String epid, String mid, String timestamp, String signature) {
     time_t timenow = now() - (timeZone * SECS_PER_HOUR);
     time_t timediff = abs(timethen - timenow);
     if (timediff > 30) {
-      Serial.println("Failed security check, signature is too old");
-      Serial.print("Server: ");
-      Serial.println(timethen);
-      Serial.print("Local: ");
-      Serial.println(timenow);
-      Serial.print("MID: ");
-      Serial.println(mid);
+      if (enableSerialOutput) Serial.println("Failed security check, signature is too old");
+      if (enableSerialOutput) Serial.print("Server: ");
+      if (enableSerialOutput) Serial.println(timethen);
+      if (enableSerialOutput) Serial.print("Local: ");
+      if (enableSerialOutput) Serial.println(timenow);
+      if (enableSerialOutput) Serial.print("MID: ");
+      if (enableSerialOutput) Serial.println(mid);
       timeAuthError = timediff;
       validEPOCH(timenow);
       return false;
@@ -210,20 +212,20 @@ bool validateHMAC(String epid, String mid, String timestamp, String signature) {
     String computedSignature = bin2hex(hash, HASH_LENGTH);
 
     if (computedSignature != signature) {
-      Serial.println("Failed security check, signatures do not match");
-      Serial.print("1: ");
-      Serial.println(signature);
-      Serial.print("2: ");
-      Serial.println(computedSignature);
-      Serial.print("MID: ");
-      Serial.println(mid);
+      if (enableSerialOutput) Serial.println("Failed security check, signatures do not match");
+      if (enableSerialOutput) Serial.print("1: ");
+      if (enableSerialOutput) Serial.println(signature);
+      if (enableSerialOutput) Serial.print("2: ");
+      if (enableSerialOutput) Serial.println(computedSignature);
+      if (enableSerialOutput) Serial.print("MID: ");
+      if (enableSerialOutput) Serial.println(mid);
       authError = true;
       return false;
     }
 
-    Serial.println("Passed security check");
-    Serial.print("MID: ");
-    Serial.println(mid);
+    if (enableSerialOutput) Serial.println("Passed security check");
+    if (enableSerialOutput) Serial.print("MID: ");
+    if (enableSerialOutput) Serial.println(mid);
     return true;
 }
 
@@ -240,15 +242,15 @@ String getUserID(String token)
   http.begin(url + token, fingerprint);
   int httpCode = http.GET();
   String payload = http.getString();
-  Serial.println(url + token);
-  Serial.println(httpCode);
-  Serial.println(payload);
+  if (enableSerialOutput) Serial.println(url + token);
+  if (enableSerialOutput) Serial.println(httpCode);
+  if (enableSerialOutput) Serial.println(payload);
   if (httpCode > 0 && httpCode == HTTP_CODE_OK) {
     DynamicJsonBuffer jsonBuffer;
     JsonObject& json = jsonBuffer.parseObject(payload);
     uid = json["user_id"].as<String>();
   } else {
-    Serial.println("Error retrieving user_id");
+    if (enableSerialOutput) Serial.println("Error retrieving user_id");
     payload = "";
   }
   http.end();
@@ -278,7 +280,7 @@ String externalIP()
   if (strlen(_ip) > 0) {
     unsigned long delta = millis() - lastupdate;
     if (delta > resetfrequency || lastupdate == 0) {
-      Serial.println("Reseting cached external IP address");
+      if (enableSerialOutput) Serial.println("Reseting cached external IP address");
       strncpy(_ip, "", 16); // Reset the cached external IP every 72 hours
     } else {
       return String(_ip); // Return the cached external IP
@@ -297,21 +299,21 @@ String externalIP()
     int pos_start = payload.indexOf("IP Address") + 12; // add 10 for "IP Address" and 2 for ":" + "space"
     int pos_end = payload.indexOf("</body>", pos_start); // add nothing
     strncpy(_ip, payload.substring(pos_start, pos_end).c_str(), 16);
-    Serial.print(F("External IP: "));
-    Serial.println(_ip);
+    if (enableSerialOutput) Serial.print(F("External IP: "));
+    if (enableSerialOutput) Serial.println(_ip);
     lastupdate = millis();
   } else {
-    Serial.println("Error retrieving external IP");
-    Serial.print("HTTP Code: ");
-    Serial.println(httpCode);
-    Serial.println(http.errorToString(httpCode));
+    if (enableSerialOutput) Serial.println("Error retrieving external IP");
+    if (enableSerialOutput) Serial.print("HTTP Code: ");
+    if (enableSerialOutput) Serial.println(httpCode);
+    if (enableSerialOutput) Serial.println(http.errorToString(httpCode));
     externalIPError = true;
   }
 
   http.end();
-  Serial.print("External IP address request took ");
-  Serial.print(millis() - start);
-  Serial.println(" ms");
+  if (enableSerialOutput) Serial.print("External IP address request took ");
+  if (enableSerialOutput) Serial.print(millis() - start);
+  if (enableSerialOutput) Serial.println(" ms");
 
   return _ip;
 }
@@ -322,7 +324,7 @@ String externalIP()
 //
 void disableLed()
 {
-  Serial.println("Turning off the LED to save power.");
+  if (enableSerialOutput) Serial.println("Turning off the LED to save power.");
   digitalWrite(ledpin, HIGH);                           // Shut down the LED
   ticker.detach();                                      // Stopping the ticker
 }
@@ -332,10 +334,10 @@ void disableLed()
 // Gets called when WiFiManager enters configuration mode
 //
 void configModeCallback (WiFiManager *myWiFiManager) {
-  Serial.println("Entered config mode");
-  Serial.println(WiFi.softAPIP());
+  if (enableSerialOutput) Serial.println("Entered config mode");
+  if (enableSerialOutput) Serial.println(WiFi.softAPIP());
   //if you used auto generated SSID, print it
-  Serial.println(myWiFiManager->getConfigPortalSSID());
+  if (enableSerialOutput) Serial.println(myWiFiManager->getConfigPortalSSID());
   //entered config mode, make led toggle faster
   ticker.attach(0.2, tick);
 }
@@ -345,7 +347,7 @@ void configModeCallback (WiFiManager *myWiFiManager) {
 // Gets called when device loses connection to the accesspoint
 //
 void lostWifiCallback (const WiFiEventStationModeDisconnected& evt) {
-  Serial.println("Lost Wifi");
+  if (enableSerialOutput) Serial.println("Lost Wifi");
   // reset and try again, or maybe put it to deep sleep
   ESP.reset();
   delay(1000);
@@ -377,13 +379,13 @@ bool setupWifi(bool resetConf) {
   wifiManager.setConfigPortalTimeout(180);
 
   if (SPIFFS.begin()) {
-    Serial.println("mounted file system");
+    if (enableSerialOutput) Serial.println("mounted file system");
     if (SPIFFS.exists("/config.json")) {
       //file exists, reading and loading
-      Serial.println("reading config file");
+      if (enableSerialOutput) Serial.println("reading config file");
       File configFile = SPIFFS.open("/config.json", "r");
       if (configFile) {
-        Serial.println("opened config file");
+        if (enableSerialOutput) Serial.println("opened config file");
         size_t size = configFile.size();
         // Allocate a buffer to store contents of the file.
         std::unique_ptr<char[]> buf(new char[size]);
@@ -391,9 +393,9 @@ bool setupWifi(bool resetConf) {
         configFile.readBytes(buf.get(), size);
         DynamicJsonBuffer jsonBuffer;
         JsonObject& json = jsonBuffer.parseObject(buf.get());
-        json.printTo(Serial);
+        if (enableSerialOutput) json.printTo(Serial);
         if (json.success()) {
-          Serial.println("\nparsed json");
+          if (enableSerialOutput) Serial.println("\nparsed json");
 
           if (json.containsKey("hostname")) strncpy(host_name, json["hostname"], 20);
           if (json.containsKey("passcode")) strncpy(passcode, json["passcode"], 20);
@@ -406,12 +408,12 @@ bool setupWifi(bool resetConf) {
           if (json.containsKey("gw")) strncpy(static_gw, json["gw"], 16);
           if (json.containsKey("sn")) strncpy(static_sn, json["sn"], 16);
         } else {
-          Serial.println("failed to load json config");
+          if (enableSerialOutput) Serial.println("failed to load json config");
         }
       }
     }
   } else {
-    Serial.println("failed to mount FS");
+    if (enableSerialOutput) Serial.println("failed to mount FS");
   }
 
   WiFiManagerParameter custom_hostname("hostname", "Choose a hostname to this IR Controller", host_name, 20);
@@ -427,14 +429,14 @@ bool setupWifi(bool resetConf) {
   sip.fromString(static_ip);
   sgw.fromString(static_gw);
   ssn.fromString(static_sn);
-  Serial.println("Using Static IP");
+  if (enableSerialOutput) Serial.println("Using Static IP");
   wifiManager.setSTAStaticIPConfig(sip, sgw, ssn);
 
   // fetches ssid and pass and tries to connect
   // if it does not connect it starts an access point with the specified name
   // and goes into a blocking loop awaiting configuration
   if (!wifiManager.autoConnect(wifi_config_name)) {
-    Serial.println("Failed to connect and hit timeout");
+    if (enableSerialOutput) Serial.println("Failed to connect and hit timeout");
     // reset and try again, or maybe put it to deep sleep
     ESP.reset();
     delay(1000);
@@ -455,11 +457,11 @@ bool setupWifi(bool resetConf) {
   // Reset device if lost wifi Connection
   WiFi.onStationModeDisconnected(&lostWifiCallback);
 
-  Serial.println("WiFi connected! User chose hostname '" + String(host_name) + String("' passcode '") + String(passcode) + "' and port '" + String(port_str) + "'");
+  if (enableSerialOutput) Serial.println("WiFi connected! User chose hostname '" + String(host_name) + String("' passcode '") + String(passcode) + "' and port '" + String(port_str) + "'");
 
   // save the custom parameters to FS
   if (shouldSaveConfig) {
-    Serial.println(" config...");
+    if (enableSerialOutput) Serial.println(" config...");
     DynamicJsonBuffer jsonBuffer;
     JsonObject& json = jsonBuffer.createObject();
     json["hostname"] = host_name;
@@ -472,16 +474,16 @@ bool setupWifi(bool resetConf) {
 
     File configFile = SPIFFS.open("/config.json", "w");
     if (!configFile) {
-      Serial.println("failed to open config file for writing");
+      if (enableSerialOutput) Serial.println("failed to open config file for writing");
     }
 
-    json.printTo(Serial);
-    Serial.println("");
-    Serial.println("Writing config file");
+    if (enableSerialOutput) json.printTo(Serial);
+    if (enableSerialOutput) Serial.println("");
+    if (enableSerialOutput) Serial.println("Writing config file");
     json.printTo(configFile);
     configFile.close();
     jsonBuffer.clear();
-    Serial.println("Config written successfully");
+    if (enableSerialOutput) Serial.println("Config written successfully");
   }
   ticker.detach();
 
@@ -496,22 +498,22 @@ bool setupWifi(bool resetConf) {
 //
 void setup() {
   // Initialize serial
-  Serial.begin(115200);
+  if (enableSerialOutput) Serial.begin(115200);
 
   // set led pin as output
   pinMode(ledpin, OUTPUT);
 
-  Serial.println("");
-  Serial.println("ESP8266 IR Controller");
+  if (enableSerialOutput) Serial.println("");
+  if (enableSerialOutput) Serial.println("ESP8266 IR Controller");
   pinMode(configpin, INPUT_PULLUP);
-  Serial.print("Config pin GPIO");
-  Serial.print(configpin);
-  Serial.print(" set to: ");
-  Serial.println(digitalRead(configpin));
+  if (enableSerialOutput) Serial.print("Config pin GPIO");
+  if (enableSerialOutput) Serial.print(configpin);
+  if (enableSerialOutput) Serial.print(" set to: ");
+  if (enableSerialOutput) Serial.println(digitalRead(configpin));
   if (!setupWifi(digitalRead(configpin) == LOW))
     return;
 
-  Serial.println("WiFi configuration complete");
+  if (enableSerialOutput) Serial.println("WiFi configuration complete");
 
   if (strlen(host_name) > 0) {
     WiFi.hostname(host_name);
@@ -521,7 +523,7 @@ void setup() {
 
   while (WiFi.status() != WL_CONNECTED) {
     delay(500);
-    Serial.print(".");
+    if (enableSerialOutput) Serial.print(".");
   }
 
   wifi_set_sleep_type(LIGHT_SLEEP_T);
@@ -529,42 +531,42 @@ void setup() {
   // Turn off the led in 2s
   ticker.attach(2, disableLed);
 
-  Serial.print("Local IP: ");
-  Serial.println(WiFi.localIP().toString());
-  Serial.println("URL to send commands: http://" + String(host_name) + ".local:" + port_str);
+  if (enableSerialOutput) Serial.print("Local IP: ");
+  if (enableSerialOutput) Serial.println(WiFi.localIP().toString());
+  if (enableSerialOutput) Serial.println("URL to send commands: http://" + String(host_name) + ".local:" + port_str);
 
   if (enableMDNSServices) {
     // Configure OTA Update
     ArduinoOTA.setPort(8266);
     ArduinoOTA.setHostname(host_name);
     ArduinoOTA.onStart([]() {
-      Serial.println("Start");
+      if (enableSerialOutput) Serial.println("Start");
     });
     ArduinoOTA.onEnd([]() {
-      Serial.println("\nEnd");
+      if (enableSerialOutput) Serial.println("\nEnd");
     });
     ArduinoOTA.onProgress([](unsigned int progress, unsigned int total) {
-      Serial.printf("Progress: %u%%\r", (progress / (total / 100)));
+      if (enableSerialOutput) Serial.printf("Progress: %u%%\r", (progress / (total / 100)));
     });
     ArduinoOTA.onError([](ota_error_t error) {
-      Serial.printf("Error[%u]: ", error);
-      if (error == OTA_AUTH_ERROR) Serial.println("Auth Failed");
-      else if (error == OTA_BEGIN_ERROR) Serial.println("Begin Failed");
-      else if (error == OTA_CONNECT_ERROR) Serial.println("Connect Failed");
-      else if (error == OTA_RECEIVE_ERROR) Serial.println("Receive Failed");
-      else if (error == OTA_END_ERROR) Serial.println("End Failed");
+      if (enableSerialOutput) Serial.printf("Error[%u]: ", error);
+      if (error == OTA_AUTH_ERROR) if (enableSerialOutput) Serial.println("Auth Failed");
+      else if (error == OTA_BEGIN_ERROR) if (enableSerialOutput) Serial.println("Begin Failed");
+      else if (error == OTA_CONNECT_ERROR) if (enableSerialOutput) Serial.println("Connect Failed");
+      else if (error == OTA_RECEIVE_ERROR) if (enableSerialOutput) Serial.println("Receive Failed");
+      else if (error == OTA_END_ERROR) if (enableSerialOutput) Serial.println("End Failed");
     });
     ArduinoOTA.begin();
-    Serial.println("ArduinoOTA started");
+    if (enableSerialOutput) Serial.println("ArduinoOTA started");
 
     // Configure mDNS
     MDNS.addService("http", "tcp", port); // Announce the ESP as an HTTP service
-    Serial.println("MDNS http service added. Hostname is set to " + String(host_name) + ".local:" + String(port));
+    if (enableSerialOutput) Serial.println("MDNS http service added. Hostname is set to " + String(host_name) + ".local:" + String(port));
   }
 
   // Configure the server
   server->on("/json", []() { // JSON handler for more complicated IR blaster routines
-    Serial.println("Connection received - JSON");
+    if (enableSerialOutput) Serial.println("Connection received - JSON");
 
     DynamicJsonBuffer jsonBuffer;
     JsonArray& root = jsonBuffer.parseArray(server->arg("plain"));
@@ -578,7 +580,7 @@ void setup() {
     int out = (server->hasArg("out")) ? server->arg("out").toInt() : 1;
 
     if (!root.success()) {
-      Serial.println("JSON parsing failed");
+      if (enableSerialOutput) Serial.println("JSON parsing failed");
       if (simple) {
         server->send(400, "text/plain", "JSON parsing failed");
       } else {
@@ -586,7 +588,7 @@ void setup() {
       }
       jsonBuffer.clear();
     } else if (strlen(passcode) != 0 && server->arg("pass") != passcode) {
-      Serial.println("Unauthorized access");
+      if (enableSerialOutput) Serial.println("Unauthorized access");
       if (simple) {
         server->send(401, "text/plain", "Unauthorized, invalid passcode");
       } else {
@@ -602,27 +604,27 @@ void setup() {
       // Handle device state limitations for the global JSON command request
       if (server->hasArg("device")) {
         String device = server->arg("device");
-        Serial.println("Device name detected " + device);
+        if (enableSerialOutput) Serial.println("Device name detected " + device);
         int state = (server->hasArg("state")) ? server->arg("state").toInt() : 0;
         if (deviceState.containsKey(device)) {
-          Serial.println("Contains the key!");
-          Serial.println(state);
+          if (enableSerialOutput) Serial.println("Contains the key!");
+          if (enableSerialOutput) Serial.println(state);
           int currentState = deviceState[device];
-          Serial.println(currentState);
+          if (enableSerialOutput) Serial.println(currentState);
           if (state == currentState) {
             if (simple) {
               server->send(200, "text/html", "Not sending command to " + device + ", already in state " + state);
             } else {
               sendHomePage("Not sending command to " + device + ", already in state " + state, "Warning", 2); // 200
             }
-            Serial.println("Not sending command to " + device + ", already in state " + state);
+            if (enableSerialOutput) Serial.println("Not sending command to " + device + ", already in state " + state);
             return;
           } else {
-            Serial.println("Setting device " + device + " to state " + state);
+            if (enableSerialOutput) Serial.println("Setting device " + device + " to state " + state);
             deviceState[device] = state;
           }
         } else {
-          Serial.println("Setting device " + device + " to state " + state);
+          if (enableSerialOutput) Serial.println("Setting device " + device + " to state " + state);
           deviceState[device] = state;
         }
       }
@@ -659,15 +661,15 @@ void setup() {
           if (deviceState.containsKey(device)) {
             int currentState = deviceState[device];
             if (state == currentState) {
-              Serial.println("Not sending command to " + device + ", already in state " + state);
+              if (enableSerialOutput) Serial.println("Not sending command to " + device + ", already in state " + state);
               message = "Code sent. Some components of the code were held because device was already in appropriate state";
               continue;
             } else {
-              Serial.println("Setting device " + device + " to state " + state);
+              if (enableSerialOutput) Serial.println("Setting device " + device + " to state " + state);
               deviceState[device] = state;
             }
           } else {
-            Serial.println("Setting device " + device + " to state " + state);
+            if (enableSerialOutput) Serial.println("Setting device " + device + " to state " + state);
             deviceState[device] = state;
           }
         }
@@ -695,7 +697,7 @@ void setup() {
       }
 
       if (!simple) {
-        Serial.println("Sending home page");
+        if (enableSerialOutput) Serial.println("Sending home page");
         sendHomePage(message, "Success", 1); // 200
       }
 
@@ -705,7 +707,7 @@ void setup() {
 
   // Setup simple msg server to mirror version 1.0 functionality
   server->on("/msg", []() {
-    Serial.println("Connection received - MSG");
+    if (enableSerialOutput) Serial.println("Connection received - MSG");
 
     int simple = 0;
     if (server->hasArg("simple")) simple = server->arg("simple").toInt();
@@ -715,7 +717,7 @@ void setup() {
     String timestamp = server->arg("time");
 
     if (strlen(passcode) != 0 && server->arg("pass") != passcode) {
-      Serial.println("Unauthorized access");
+      if (enableSerialOutput) Serial.println("Unauthorized access");
       if (simple) {
         server->send(401, "text/plain", "Unauthorized, invalid passcode");
       } else {
@@ -733,27 +735,27 @@ void setup() {
       // Handle device state limitations
       if (server->hasArg("device")) {
         String device = server->arg("device");
-        Serial.println("Device name detected " + device);
+        if (enableSerialOutput) Serial.println("Device name detected " + device);
         int state = (server->hasArg("state")) ? server->arg("state").toInt() : 0;
         if (deviceState.containsKey(device)) {
-          Serial.println("Contains the key!");
-          Serial.println(state);
+          if (enableSerialOutput) Serial.println("Contains the key!");
+          if (enableSerialOutput) Serial.println(state);
           int currentState = deviceState[device];
-          Serial.println(currentState);
+          if (enableSerialOutput) Serial.println(currentState);
           if (state == currentState) {
             if (simple) {
               server->send(200, "text/html", "Not sending command to " + device + ", already in state " + state);
             } else {
               sendHomePage("Not sending command to " + device + ", already in state " + state, "Warning", 2); // 200
             }
-            Serial.println("Not sending command to " + device + ", already in state " + state);
+            if (enableSerialOutput) Serial.println("Not sending command to " + device + ", already in state " + state);
             return;
           } else {
-            Serial.println("Setting device " + device + " to state " + state);
+            if (enableSerialOutput) Serial.println("Setting device " + device + " to state " + state);
             deviceState[device] = state;
           }
         } else {
-          Serial.println("Setting device " + device + " to state " + state);
+          if (enableSerialOutput) Serial.println("Setting device " + device + " to state " + state);
           deviceState[device] = state;
         }
       }
@@ -795,7 +797,7 @@ void setup() {
   });
 
   server->on("/received", []() {
-    Serial.println("Connection received");
+    if (enableSerialOutput) Serial.println("Connection received");
     int id = server->arg("id").toInt();
     String output;
     if (id == 1 && last_recv.valid) {
@@ -814,19 +816,19 @@ void setup() {
   });
 
   server->on("/", []() {
-    Serial.println("Connection received");
+    if (enableSerialOutput) Serial.println("Connection received");
     sendHomePage(); // 200
   });
 
   server->begin();
-  Serial.println("HTTP Server started on port " + String(port));
+  if (enableSerialOutput) Serial.println("HTTP Server started on port " + String(port));
 
 
-  Serial.println("Starting UDP");
+  if (enableSerialOutput) Serial.println("Starting UDP");
   ntpUDP.begin(localPort);
-  Serial.print("Local port: ");
-  Serial.println(ntpUDP.localPort());
-  Serial.println("Waiting for sync");
+  if (enableSerialOutput) Serial.print("Local port: ");
+  if (enableSerialOutput) Serial.println(ntpUDP.localPort());
+  if (enableSerialOutput) Serial.println("Waiting for sync");
   setSyncProvider(getNtpTime);
   setSyncInterval(300);
   
@@ -835,16 +837,16 @@ void setup() {
   if (strlen(user_id) > 0) {
     userIDError = !validUID(user_id);
     if (!userIDError) {
-      Serial.println("No errors detected with security configuration");
+      if (enableSerialOutput) Serial.println("No errors detected with security configuration");
     }
 
     // Validation check time
     time_t timenow = now() - (timeZone * SECS_PER_HOUR);
     bool validEpoch = validEPOCH(timenow);
     if (validEpoch) {
-      Serial.println("EPOCH time obtained for security checks");
+      if (enableSerialOutput) Serial.println("EPOCH time obtained for security checks");
     } else {
-      Serial.println("Invalid EPOCH time, security checks may fail if unable to sync with NTP server");
+      if (enableSerialOutput) Serial.println("Invalid EPOCH time, security checks may fail if unable to sync with NTP server");
     }
   }
 
@@ -853,7 +855,7 @@ void setup() {
   irsend3.begin();
   irsend4.begin();
   irrecv.enableIRIn();
-  Serial.println("Ready to send and receive IR signals");
+  if (enableSerialOutput) Serial.println("Ready to send and receive IR signals");
 }
 
 
@@ -868,18 +870,18 @@ time_t getNtpTime()
   IPAddress ntpServerIP; // NTP server's ip address
 
   while (ntpUDP.parsePacket() > 0) ; // discard any previously received packets
-  Serial.println("Transmit NTP Request");
+  if (enableSerialOutput) Serial.println("Transmit NTP Request");
   // get a random server from the pool
   WiFi.hostByName(ntpServerName, ntpServerIP);
-  Serial.print(ntpServerName);
-  Serial.print(": ");
-  Serial.println(ntpServerIP);
+  if (enableSerialOutput) Serial.print(ntpServerName);
+  if (enableSerialOutput) Serial.print(": ");
+  if (enableSerialOutput) Serial.println(ntpServerIP);
   sendNTPpacket(ntpServerIP);
   uint32_t beginWait = millis();
   while (millis() - beginWait < 1500) {
     int size = ntpUDP.parsePacket();
     if (size >= NTP_PACKET_SIZE) {
-      Serial.println("Receive NTP Response");
+      if (enableSerialOutput) Serial.println("Receive NTP Response");
       ntpUDP.read(packetBuffer, NTP_PACKET_SIZE);  // read packet into the buffer
       unsigned long secsSince1900;
       // convert four bytes starting at location 40 to a long integer
@@ -890,7 +892,7 @@ time_t getNtpTime()
       return secsSince1900 - 2208988800UL + timeZone * SECS_PER_HOUR;
     }
   }
-  Serial.println("No NTP Response :-(");
+  if (enableSerialOutput) Serial.println("No NTP Response :-(");
   return 0; // return 0 if unable to get the time
 }
 
@@ -931,8 +933,8 @@ int rokuCommand(String ip, String data, int repeat, int rdelay) {
 
   for (int r = 0; r < repeat; r++) {
     http.begin(url);
-    Serial.println(url);
-    Serial.println("Sending roku command");
+    if (enableSerialOutput) Serial.println(url);
+    if (enableSerialOutput) Serial.println("Sending roku command");
   
     copyCode(last_send_4, last_send_5);
     copyCode(last_send_3, last_send_4);
@@ -1025,16 +1027,16 @@ String encoding(decode_results *results) {
 //
 void fullCode (decode_results *results)
 {
-  Serial.print("One line: ");
+  if (enableSerialOutput) Serial.print("One line: ");
   serialPrintUint64(results->value, 16);
-  Serial.print(":");
-  Serial.print(encoding(results));
-  Serial.print(":");
-  Serial.print(results->bits, DEC);
-  if (results->repeat) Serial.print(" (Repeat)");
-  Serial.println("");
+  if (enableSerialOutput) Serial.print(":");
+  if (enableSerialOutput) Serial.print(encoding(results));
+  if (enableSerialOutput) Serial.print(":");
+  if (enableSerialOutput) Serial.print(results->bits, DEC);
+  if (results->repeat) if (enableSerialOutput) Serial.print(" (Repeat)");
+  if (enableSerialOutput) Serial.println("");
   if (results->overflow)
-    Serial.println("WARNING: IR code too long. "
+    if (enableSerialOutput) Serial.println("WARNING: IR code too long. "
                    "Edit IRController.ino and increase captureBufSize");
 }
 
@@ -1294,20 +1296,20 @@ void cvrtCode(Code& codeData, decode_results *results) {
 //
 void dumpInfo(decode_results *results) {
   if (results->overflow)
-    Serial.println("WARNING: IR code too long. "
+    if (enableSerialOutput) Serial.println("WARNING: IR code too long. "
                    "Edit IRrecv.h and increase RAWBUF");
 
   // Show Encoding standard
-  Serial.print("Encoding  : ");
-  Serial.print(encoding(results));
-  Serial.println("");
+  if (enableSerialOutput) Serial.print("Encoding  : ");
+  if (enableSerialOutput) Serial.print(encoding(results));
+  if (enableSerialOutput) Serial.println("");
 
   // Show Code & length
-  Serial.print("Code      : ");
+  if (enableSerialOutput) Serial.print("Code      : ");
   serialPrintUint64(results->value, 16);
-  Serial.print(" (");
-  Serial.print(results->bits, DEC);
-  Serial.println(" bits)");
+  if (enableSerialOutput) Serial.print(" (");
+  if (enableSerialOutput) Serial.print(results->bits, DEC);
+  if (enableSerialOutput) Serial.println(" bits)");
 }
 
 
@@ -1316,31 +1318,31 @@ void dumpInfo(decode_results *results) {
 //
 void dumpRaw(decode_results *results) {
   // Print Raw data
-  Serial.print("Timing[");
-  Serial.print(results->rawlen - 1, DEC);
-  Serial.println("]: ");
+  if (enableSerialOutput) Serial.print("Timing[");
+  if (enableSerialOutput) Serial.print(results->rawlen - 1, DEC);
+  if (enableSerialOutput) Serial.println("]: ");
 
   for (uint16_t i = 1;  i < results->rawlen;  i++) {
     if (i % 100 == 0)
       yield();  // Preemptive yield every 100th entry to feed the WDT.
     uint32_t x = results->rawbuf[i] * kRawTick;
     if (!(i & 1)) {  // even
-      Serial.print("-");
-      if (x < 1000) Serial.print(" ");
-      if (x < 100) Serial.print(" ");
-      Serial.print(x, DEC);
+      if (enableSerialOutput) Serial.print("-");
+      if (x < 1000) if (enableSerialOutput) Serial.print(" ");
+      if (x < 100) if (enableSerialOutput) Serial.print(" ");
+      if (enableSerialOutput) Serial.print(x, DEC);
     } else {  // odd
-      Serial.print("     ");
-      Serial.print("+");
-      if (x < 1000) Serial.print(" ");
-      if (x < 100) Serial.print(" ");
-      Serial.print(x, DEC);
+      if (enableSerialOutput) Serial.print("     ");
+      if (enableSerialOutput) Serial.print("+");
+      if (x < 1000) if (enableSerialOutput) Serial.print(" ");
+      if (x < 100) if (enableSerialOutput) Serial.print(" ");
+      if (enableSerialOutput) Serial.print(x, DEC);
       if (i < results->rawlen - 1)
-        Serial.print(", ");  // ',' not needed for last one
+        if (enableSerialOutput) Serial.print(", ");  // ',' not needed for last one
     }
-    if (!(i % 8)) Serial.println("");
+    if (!(i % 8)) if (enableSerialOutput) Serial.println("");
   }
-  Serial.println("");  // Newline
+  if (enableSerialOutput) Serial.println("");  // Newline
 }
 
 
@@ -1349,30 +1351,30 @@ void dumpRaw(decode_results *results) {
 //
 void dumpCode(decode_results *results) {
   // Start declaration
-  Serial.print("uint16_t  ");              // variable type
-  Serial.print("rawData[");                // array name
-  Serial.print(results->rawlen - 1, DEC);  // array size
-  Serial.print("] = {");                   // Start declaration
+  if (enableSerialOutput) Serial.print("uint16_t  ");              // variable type
+  if (enableSerialOutput) Serial.print("rawData[");                // array name
+  if (enableSerialOutput) Serial.print(results->rawlen - 1, DEC);  // array size
+  if (enableSerialOutput) Serial.print("] = {");                   // Start declaration
 
   // Dump data
   for (uint16_t i = 1; i < results->rawlen; i++) {
-    Serial.print(results->rawbuf[i] * kRawTick, DEC);
+    if (enableSerialOutput) Serial.print(results->rawbuf[i] * kRawTick, DEC);
     if (i < results->rawlen - 1)
-      Serial.print(",");  // ',' not needed on last one
-    if (!(i & 1)) Serial.print(" ");
+      if (enableSerialOutput) Serial.print(",");  // ',' not needed on last one
+    if (!(i & 1)) if (enableSerialOutput) Serial.print(" ");
   }
 
   // End declaration
-  Serial.print("};");  //
+  if (enableSerialOutput) Serial.print("};");  //
 
   // Comment
-  Serial.print("  // ");
-  Serial.print(encoding(results));
-  Serial.print(" ");
+  if (enableSerialOutput) Serial.print("  // ");
+  if (enableSerialOutput) Serial.print(encoding(results));
+  if (enableSerialOutput) Serial.print(" ");
   serialPrintUint64(results->value, 16);
 
   // Newline
-  Serial.println("");
+  if (enableSerialOutput) Serial.println("");
 
   // Now dump "known" codes
   if (results->decode_type != UNKNOWN) {
@@ -1380,18 +1382,18 @@ void dumpCode(decode_results *results) {
     // NOTE: It will ignore the atypical case when a message has been decoded
     // but the address & the command are both 0.
     if (results->address > 0 || results->command > 0) {
-      Serial.print("uint32_t  address = 0x");
-      Serial.print(results->address, HEX);
-      Serial.println(";");
-      Serial.print("uint32_t  command = 0x");
-      Serial.print(results->command, HEX);
-      Serial.println(";");
+      if (enableSerialOutput) Serial.print("uint32_t  address = 0x");
+      if (enableSerialOutput) Serial.print(results->address, HEX);
+      if (enableSerialOutput) Serial.println(";");
+      if (enableSerialOutput) Serial.print("uint32_t  command = 0x");
+      if (enableSerialOutput) Serial.print(results->command, HEX);
+      if (enableSerialOutput) Serial.println(";");
     }
 
     // All protocols have data
-    Serial.print("uint64_t  data = 0x");
+    if (enableSerialOutput) Serial.print("uint64_t  data = 0x");
     serialPrintUint64(results->value, 16);
-    Serial.println(";");
+    if (enableSerialOutput) Serial.println(";");
   }
 }
 
@@ -1417,20 +1419,20 @@ String bin2hex(const uint8_t* bin, const int length) {
 // Send IR codes to variety of sources
 //
 void irblast(String type, String dataStr, unsigned int len, int rdelay, int pulse, int pdelay, int repeat, long address, IRsend irsend) {
-  Serial.println("Blasting off");
+  if (enableSerialOutput) Serial.println("Blasting off");
   type.toLowerCase();
   uint64_t data = strtoull(("0x" + dataStr).c_str(), 0, 0);
   holdReceive = true;
-  Serial.println("Blocking incoming IR signals");
+  if (enableSerialOutput) Serial.println("Blocking incoming IR signals");
   // Repeat Loop
   for (int r = 0; r < repeat; r++) {
     // Pulse Loop
     for (int p = 0; p < pulse; p++) {
       serialPrintUint64(data, HEX);
-      Serial.print(":");
-      Serial.print(type);
-      Serial.print(":");
-      Serial.println(len);
+      if (enableSerialOutput) Serial.print(":");
+      if (enableSerialOutput) Serial.print(type);
+      if (enableSerialOutput) Serial.print(":");
+      if (enableSerialOutput) Serial.println(len);
       if (type == "nec") {
         irsend.sendNEC(data, len);
       } else if (type == "sony") {
@@ -1440,8 +1442,8 @@ void irblast(String type, String dataStr, unsigned int len, int rdelay, int puls
       } else if (type == "whynter") {
         irsend.sendWhynter(data, len);
       } else if (type == "panasonic") {
-        Serial.print("Address: ");
-        Serial.println(address);
+        if (enableSerialOutput) Serial.print("Address: ");
+        if (enableSerialOutput) Serial.println(address);
         irsend.sendPanasonic(address, data);
       } else if (type == "jvc") {
         irsend.sendJVC(data, len, 0);
@@ -1475,7 +1477,7 @@ void irblast(String type, String dataStr, unsigned int len, int rdelay, int puls
     if (r + 1 < repeat) delay(rdelay);
   }
 
-  Serial.println("Transmission complete");
+  if (enableSerialOutput) Serial.println("Transmission complete");
 
   copyCode(last_send_4, last_send_5);
   copyCode(last_send_3, last_send_4);
@@ -1493,15 +1495,15 @@ void irblast(String type, String dataStr, unsigned int len, int rdelay, int puls
 }
 
 void pronto(JsonArray &pronto, int rdelay, int pulse, int pdelay, int repeat, IRsend irsend) {
-  Serial.println("Pronto transmit");
+  if (enableSerialOutput) Serial.println("Pronto transmit");
   holdReceive = true;
-  Serial.println("Blocking incoming IR signals");
+  if (enableSerialOutput) Serial.println("Blocking incoming IR signals");
   int psize = pronto.size();
   // Repeat Loop
   for (int r = 0; r < repeat; r++) {
     // Pulse Loop
     for (int p = 0; p < pulse; p++) {
-      Serial.println("Sending pronto code");
+      if (enableSerialOutput) Serial.println("Sending pronto code");
       uint16_t output[psize];
       for (int d = 0; d < psize; d++) {
         String phexp = pronto[d];
@@ -1512,7 +1514,7 @@ void pronto(JsonArray &pronto, int rdelay, int pulse, int pdelay, int repeat, IR
     }
     if (r + 1 < repeat) delay(rdelay);
   }
-  Serial.println("Transmission complete");
+  if (enableSerialOutput) Serial.println("Transmission complete");
 
   copyCode(last_send_4, last_send_5);
   copyCode(last_send_3, last_send_4);
@@ -1530,14 +1532,14 @@ void pronto(JsonArray &pronto, int rdelay, int pulse, int pdelay, int repeat, IR
 }
 
 void rawblast(JsonArray &raw, int khz, int rdelay, int pulse, int pdelay, int repeat, IRsend irsend,int duty) {
-  Serial.println("Raw transmit");
+  if (enableSerialOutput) Serial.println("Raw transmit");
   holdReceive = true;
-  Serial.println("Blocking incoming IR signals");
+  if (enableSerialOutput) Serial.println("Blocking incoming IR signals");
   // Repeat Loop
   for (int r = 0; r < repeat; r++) {
     // Pulse Loop
     for (int p = 0; p < pulse; p++) {
-      Serial.println("Sending code");
+      if (enableSerialOutput) Serial.println("Sending code");
       irsend.enableIROut(khz,duty);
       for (unsigned int i = 0; i < raw.size(); i++) {
         int val = raw[i];
@@ -1550,7 +1552,7 @@ void rawblast(JsonArray &raw, int khz, int rdelay, int pulse, int pdelay, int re
     if (r + 1 < repeat) delay(rdelay);
   }
 
-  Serial.println("Transmission complete");
+  if (enableSerialOutput) Serial.println("Transmission complete");
 
   copyCode(last_send_4, last_send_5);
   copyCode(last_send_3, last_send_4);
@@ -1570,10 +1572,10 @@ void rawblast(JsonArray &raw, int khz, int rdelay, int pulse, int pdelay, int re
 
 void roomba_send(int code, int pulse, int pdelay, IRsend irsend)
 {
-  Serial.print("Sending Roomba code ");
-  Serial.println(code);
+  if (enableSerialOutput) Serial.print("Sending Roomba code ");
+  if (enableSerialOutput) Serial.println(code);
   holdReceive = true;
-  Serial.println("Blocking incoming IR signals");
+  if (enableSerialOutput) Serial.println("Blocking incoming IR signals");
 
   int length = 8;
   uint16_t raw[length * 2];
@@ -1622,9 +1624,9 @@ void loop() {
   decode_results  results;                                        // Somewhere to store the results
 
   if (irrecv.decode(&results) && !holdReceive) {                  // Grab an IR code
-    //Serial.println("Signal received:");
-    //fullCode(&results);                                           // Print the singleline value
-    //dumpCode(&results);                                           // Output the results as source code
+    if (enableSerialOutput) Serial.println("Signal received:");
+    if (enableSerialOutput) fullCode(&results);                   // Print the singleline value
+    if (enableSerialOutput) dumpCode(&results);                   // Output the results as source code
     copyCode(last_recv_4, last_recv_5);                           // Pass
     copyCode(last_recv_3, last_recv_4);                           // Pass
     copyCode(last_recv_2, last_recv_3);                           // Pass
@@ -1632,7 +1634,7 @@ void loop() {
     cvrtCode(last_recv, &results);                                // Store the results
     last_recv.timestamp = now();                                  // Set the new update time
     last_recv.valid = true;
-    //Serial.println("");                                           // Blank line between entries
+    if (enableSerialOutput) Serial.println("");                   // Blank line between entries
     irrecv.resume();                                              // Prepare for the next value
     digitalWrite(ledpin, LOW);                                    // Turn on the LED for 0.5 seconds
     ticker.attach(0.5, disableLed);
