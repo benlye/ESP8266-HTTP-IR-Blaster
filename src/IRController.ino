@@ -22,7 +22,7 @@
 const bool getExternalIP = true;                              // Set to false to disable querying external IP
 
 const bool getTime = true;                                    // Set to false to disable querying for the time
-const int timeZone = -5;                                      // Timezone (-5 is EST)
+const int timeZone = 0;                                      // Timezone (-5 is EST)
 
 const bool enableMDNSServices = true;                         // Use mDNS services, must be enabled for ArduinoOTA
 
