@@ -34,10 +34,13 @@ const int pins1 = 14;                                         // Transmitting pr
 const int pins2 = 14;                                         // Transmitting preset 2
 const int pins3 = 14;                                         // Transmitting preset 3
 const int pins4 = 14;                                         // Transmitting preset 4
-const int configpin = 10;                                     // Reset Pin
+const int configpin = 0;                                      // Reset Pin
+
+const int ledpin = 12;                                        // Red LED
+const int ledpin2 = 13;                                       // Orange LED
 
 // User settings are above here
-const int ledpin = 12;                               // Built in LED defined for WEMOS people
+
 const char *wifi_config_name = "IR Controller Configuration";
 const char serverName[] = "checkip.dyndns.org";
 int port = 80;
@@ -56,6 +59,7 @@ JsonObject& deviceState = jsonBuffer.createObject();
 
 ESP8266WebServer *server = NULL;
 Ticker ticker;
+Ticker ticker2;
 
 bool shouldSaveConfig = false;                                // Flag for saving data
 bool holdReceive = false;                                     // Flag to prevent IR receiving while transmitting
@@ -82,6 +86,12 @@ time_t timeAuthError = 0;
 bool externalIPError = false;
 bool userIDError = false;
 bool ntpError = false;
+
+int buttonState = 0;
+time_t buttonPressTime = 0;
+int buttonStateToggle = 0;
+int previousButtonStateToggle = 0;
+
 
 class Code {
   public:
@@ -265,6 +275,14 @@ void tick()
   digitalWrite(ledpin, !state);     // set pin to the opposite state
 }
 
+//+=============================================================================
+// Toggle state
+//
+void tick2()
+{
+  int state = digitalRead(ledpin2);  // get the current state of GPIO1 pin
+  digitalWrite(ledpin2, !state);     // set pin to the opposite state
+}
 
 //+=============================================================================
 // Get External IP Address
@@ -500,6 +518,7 @@ void setup() {
 
   // set led pin as output
   pinMode(ledpin, OUTPUT);
+  pinMode(ledpin2, OUTPUT);
 
   Serial.println("");
   Serial.println("ESP8266 IR Controller");
@@ -538,13 +557,13 @@ void setup() {
     ArduinoOTA.setPort(8266);
     ArduinoOTA.setHostname(host_name);
     ArduinoOTA.onStart([]() {
-      Serial.println("Start");
+      Serial.println("OTA Update Starting");
     });
     ArduinoOTA.onEnd([]() {
-      Serial.println("\nEnd");
+      Serial.println("\n\rOTA Update Complete");
     });
     ArduinoOTA.onProgress([](unsigned int progress, unsigned int total) {
-      Serial.printf("Progress: %u%%\r", (progress / (total / 100)));
+      Serial.printf("Progress: %u%%\r\n", (progress / (total / 100)));
     });
     ArduinoOTA.onError([](ota_error_t error) {
       Serial.printf("Error[%u]: ", error);
@@ -1620,6 +1639,53 @@ void loop() {
   ArduinoOTA.handle();
   server->handleClient();
   decode_results  results;                                        // Somewhere to store the results
+
+  int previousButtonState = buttonState;
+
+  buttonState = digitalRead(configpin);
+  time_t buttonPressDuration = 0;
+
+  if (buttonState == LOW) {
+    if (buttonState != previousButtonState) {
+      buttonPressTime = now();                                  // Capture the time the button was pressed
+      holdReceive = true;                                       // Stop receiving IR signals
+      digitalWrite(ledpin2, LOW);                               // Turn on the orange LED
+    }
+    
+    buttonPressDuration = now() - buttonPressTime;              // Get the time the button has been pressed for
+
+    // Use the press duration to set a toggle
+    if (buttonPressDuration == 3 ) {
+      buttonStateToggle = 1;
+    } else if (buttonPressDuration == 5) {
+      buttonStateToggle = 2;
+    } else {
+      buttonStateToggle = 0;
+    }
+
+    if (buttonStateToggle != previousButtonStateToggle) {
+      Serial.printf("Config button has been pressed for %d seconds. ", buttonPressDuration);
+      if (buttonStateToggle == 1) {
+        Serial.println("Start LED quick flashing.");
+        previousButtonStateToggle = buttonStateToggle;
+        ticker2.attach(0.1, tick2);
+        buttonStateToggle = 2;
+      } else if (buttonStateToggle == 2) {
+        Serial.println("Entering WiFi setup mode.");
+        previousButtonStateToggle = buttonStateToggle;
+        ticker2.detach();
+        setupWifi(true);
+      }
+    }
+
+  } else {
+    buttonStateToggle = 0;
+    previousButtonStateToggle = 0;
+    ticker2.detach();                                           // Detach the ticker
+    digitalWrite(ledpin2, HIGH);                                // Turn the LED off
+    buttonPressTime = 0;                                        // Reset the press timer
+    holdReceive = false;                                        // Re-enable receiving
+  }
 
   if (irrecv.decode(&results) && !holdReceive) {                  // Grab an IR code
     //Serial.println("Signal received:");
