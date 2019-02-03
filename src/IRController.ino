@@ -1655,10 +1655,8 @@ void loop() {
     buttonPressDuration = now() - buttonPressTime;              // Get the time the button has been pressed for
 
     // Use the press duration to set a toggle
-    if (buttonPressDuration == 3 ) {
+    if (buttonPressDuration >= 3) {
       buttonStateToggle = 1;
-    } else if (buttonPressDuration == 5) {
-      buttonStateToggle = 2;
     } else {
       buttonStateToggle = 0;
     }
@@ -1667,24 +1665,26 @@ void loop() {
       Serial.printf("Config button has been pressed for %d seconds. ", buttonPressDuration);
       if (buttonStateToggle == 1) {
         Serial.println("Start LED quick flashing.");
+        Serial.println("Entering to WiFi setup mode when button is released.");
         previousButtonStateToggle = buttonStateToggle;
         ticker2.attach(0.1, tick2);
-        buttonStateToggle = 2;
-      } else if (buttonStateToggle == 2) {
-        Serial.println("Entering WiFi setup mode.");
-        previousButtonStateToggle = buttonStateToggle;
-        ticker2.detach();
-        setupWifi(true);
       }
     }
-
   } else {
-    buttonStateToggle = 0;
-    previousButtonStateToggle = 0;
-    ticker2.detach();                                           // Detach the ticker
-    digitalWrite(ledpin2, HIGH);                                // Turn the LED off
-    buttonPressTime = 0;                                        // Reset the press timer
-    holdReceive = false;                                        // Re-enable receiving
+     if (buttonStateToggle == 1) {
+        buttonStateToggle = 0;
+        Serial.println("Config button released - entering WiFi setup mode.");
+        ticker2.detach();
+        digitalWrite(ledpin2, HIGH);                                // Turn the LED off
+        setupWifi(true);
+      } else {
+        buttonStateToggle = 0;
+        previousButtonStateToggle = 0;
+        ticker2.detach();                                           // Detach the ticker
+        digitalWrite(ledpin2, HIGH);                                // Turn the LED off
+        buttonPressTime = 0;                                        // Reset the press timer
+        holdReceive = false;                                        // Re-enable receiving
+      }
   }
 
   if (irrecv.decode(&results) && !holdReceive) {                  // Grab an IR code
