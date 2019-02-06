@@ -1665,7 +1665,7 @@ void loop() {
       Serial.printf("Config button has been pressed for %d seconds. ", buttonPressDuration);
       if (buttonStateToggle == 1) {
         Serial.println("Start LED quick flashing.");
-        Serial.println("Entering to WiFi setup mode when button is released.");
+        Serial.println("Entering WiFi setup mode when button is released.");
         previousButtonStateToggle = buttonStateToggle;
         ticker2.attach(0.1, tick2);
       }
@@ -1688,8 +1688,8 @@ void loop() {
   }
 
   if (irrecv.decode(&results) && !holdReceive) {                  // Grab an IR code
-    //Serial.println("Signal received:");
-    //fullCode(&results);                                           // Print the singleline value
+    Serial.println("Signal received:");
+    fullCode(&results);                                           // Print the singleline value
     //dumpCode(&results);                                           // Output the results as source code
     copyCode(last_recv_4, last_recv_5);                           // Pass
     copyCode(last_recv_3, last_recv_4);                           // Pass
@@ -1698,7 +1698,7 @@ void loop() {
     cvrtCode(last_recv, &results);                                // Store the results
     last_recv.timestamp = now();                                  // Set the new update time
     last_recv.valid = true;
-    //Serial.println("");                                           // Blank line between entries
+    Serial.println("");                                           // Blank line between entries
     irrecv.resume();                                              // Prepare for the next value
     digitalWrite(ledpin, LOW);                                    // Turn on the LED for 0.5 seconds
     ticker.attach(0.5, disableLed);
